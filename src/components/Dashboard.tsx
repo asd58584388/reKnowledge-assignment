@@ -5,12 +5,17 @@ import { ErrorMessage } from './common/ErrorMessage';
 import FilterPanel from './filters/FilterPanel';
 import EarthquakeChart from './chart/EarthquakeChart';
 import EarthquakeTable from './table/EarthquakeTable';
+import { useEarthquakeContext } from '../contexts/EarthquakeContext';
 
 export const Dashboard: React.FC = () => {
   const { data, isLoading, error, refetch } = useEarthquakeData();
 
+  const { selectedEarthquake,hoveredEarthquake, setSelectedEarthquake, setHoveredEarthquake } = useEarthquakeContext();
+ 
+
   // Memoize current date to prevent unnecessary re-renders
   const currentDate = useMemo(() => new Date().toLocaleDateString(), []);
+
 
   if (isLoading) {
     return (
@@ -71,12 +76,12 @@ export const Dashboard: React.FC = () => {
         <div className="flex-1 flex min-h-0">
           {/* Chart Panel */}
           <div className="flex-1 bg-white border-r border-gray-200">
-            <EarthquakeChart data={data} />
+            <EarthquakeChart data={data} setSelectedEarthquake={setSelectedEarthquake} setHoveredEarthquake={setHoveredEarthquake} />
           </div>
           
           {/* Table Panel */}
           <div className="flex-1 bg-white">
-            <EarthquakeTable data={data} />
+            <EarthquakeTable data={data} setSelectedEarthquake={setSelectedEarthquake} setHoveredEarthquake={setHoveredEarthquake} />
           </div>
         </div>
       </div>

@@ -19,6 +19,10 @@ export const EarthquakeProvider: React.FC<EarthquakeProviderProps> = ({ children
   const [selectedEarthquake, setSelectedEarthquake] = useState<ProcessedEarthquakeData | null>(null);
   const [hoveredEarthquake, setHoveredEarthquake] = useState<ProcessedEarthquakeData | null>(null);
 
+  console.log("current selectedEarthquake",selectedEarthquake)
+  console.log("current hoveredEarthquake",hoveredEarthquake)
+
+  
   return (
     <EarthquakeContext.Provider value={{
       selectedEarthquake,
