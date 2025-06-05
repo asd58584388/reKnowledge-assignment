@@ -23,7 +23,7 @@ An interactive web application for visualizing and exploring earthquake data fro
 - **Caching & Performance**: Optimized data processing with intelligent caching
 
 ### 🔧 Technical Features
-- **Zustand State Management**: Optimized global state with selective subscriptions
+- **React Context**: Optimized component state management
 - **React Query**: Intelligent data fetching with caching and retry logic
 - **TypeScript**: Full type safety throughout the application
 - **Responsive Design**: Works on desktop and mobile devices
@@ -38,7 +38,6 @@ An interactive web application for visualizing and exploring earthquake data fro
 - **TanStack React Table** - Powerful table component with virtualization
 - **TanStack React Virtual** - Virtualized scrolling for performance
 - **TanStack React Query** - Data fetching and caching
-- **Zustand 5** - Lightweight state management
 
 ## 📋 Prerequisites
 
@@ -90,8 +89,6 @@ src/
 │   └── Dashboard.tsx              # Main layout component
 ├── contexts/
 │   └── EarthquakeContext.tsx      # React Context for selection state
-├── stores/
-│   └── earthquakeStore.ts         # Zustand global store
 ├── hooks/
 │   └── useEarthquakeData.ts       # React Query data fetching
 ├── utils/
@@ -132,7 +129,7 @@ The application fetches live earthquake data from:
 
 - **Virtualized Rendering**: Only renders visible table rows
 - **Smart Clustering**: Reduces chart complexity for large datasets
-- **Zustand Selectors**: Prevents unnecessary re-renders
+- **React Context**: Efficient component state management
 - **Data Caching**: Intelligent caching of processed data
 - **Memoization**: Strategic use of React.memo and useMemo
 
