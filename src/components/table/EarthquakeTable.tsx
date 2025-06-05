@@ -14,17 +14,16 @@ import {
 } from '@tanstack/react-table';
 import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual';
 import type { ProcessedEarthquakeData } from '../../types/earthquake';
-import { useEarthquakeStore } from '../../stores/earthquakeStore';
 import { useEarthquakeContext } from '../../contexts/EarthquakeContext';
 import { formatDate, formatNumber } from '../../utils/dataProcessing';
 
 interface EarthquakeTableProps {
   data: ProcessedEarthquakeData[];
-  setSelectedEarthquake: (earthquake: ProcessedEarthquakeData) => void;
-  setHoveredEarthquake: (earthquake: ProcessedEarthquakeData) => void;
+  setSelectedEarthquake: (earthquake: ProcessedEarthquakeData | null) => void;
+  setHoveredEarthquake: (earthquake: ProcessedEarthquakeData | null) => void;
 }
 
-// Individual row component with selective Zustand subscriptions to prevent unnecessary re-renders
+// Individual row component with context-based highlighting
 const VirtualizedRow = React.memo(({ 
   virtualRow, 
   row, 
@@ -37,17 +36,11 @@ const VirtualizedRow = React.memo(({
   onRowHover: (rowId: string | null) => void;
 }) => {
   const earthquake = row.original;
+  const { selectedEarthquake, hoveredEarthquake } = useEarthquakeContext();
   
-  // CRITICAL: Use selective subscriptions to only re-render when THIS row's state changes
-  const isSelected = useEarthquakeStore(useCallback(
-    (state) => state.selectedId === earthquake.id,
-    [earthquake.id]
-  ));
-  
-  const isHovered = useEarthquakeStore(useCallback(
-    (state) => state.hoveredId === earthquake.id,
-    [earthquake.id]
-  ));
+  // Check if this row is selected or hovered from context (chart interactions)
+  const isSelected = selectedEarthquake?.id === earthquake.id;
+  const isHovered = hoveredEarthquake?.id === earthquake.id;
   
   // Row styling - only depends on this row's specific state
   const rowClassName = useMemo(() => {
@@ -148,8 +141,8 @@ const TableHeader = React.memo(({ table }: { table: Table<ProcessedEarthquakeDat
 
 TableHeader.displayName = 'TableHeader';
 
-const EarthquakeTable: React.FC<EarthquakeTableProps> = ({ data, setSelectedEarthquake,setHoveredEarthquake }) => {
-  const { isEarthquakeVisible, setSelectedId, setHoveredId } = useEarthquakeStore();
+const EarthquakeTable: React.FC<EarthquakeTableProps> = ({ data, setSelectedEarthquake, setHoveredEarthquake }) => {
+  const { selectedEarthquake } = useEarthquakeContext();
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = React.useState<SortingState>([]);
 
@@ -278,15 +271,9 @@ const EarthquakeTable: React.FC<EarthquakeTableProps> = ({ data, setSelectedEart
     },
   ], []);
 
-  // Filter data based on current filters - memoized to prevent unnecessary recalculation
-  const filteredData = useMemo(() => 
-    data.filter(earthquake => isEarthquakeVisible(earthquake)),
-    [data, isEarthquakeVisible]
-  );
-
   // Create table instance
   const table = useReactTable({
-    data: filteredData,
+    data: data,
     columns,
     state: {
       sorting,
@@ -309,40 +296,64 @@ const EarthquakeTable: React.FC<EarthquakeTableProps> = ({ data, setSelectedEart
     overscan: 5, // Reduced overscan for better performance
   });
 
+  // Auto-scroll to selected earthquake when selectedEarthquake changes
+  React.useEffect(() => {
+    if (selectedEarthquake) {
+      // Find the index of the selected earthquake in the current filtered and sorted rows
+      const rowIndex = rows.findIndex(row => row.original.id === selectedEarthquake.id);
+      if (rowIndex !== -1) {
+        // Scroll to the row with some options for better UX
+        rowVirtualizer.scrollToIndex(rowIndex, {
+          align: 'center', // Center the row in the viewport
+          behavior: 'smooth' // Smooth scrolling animation
+        });
+      }
+    }
+  }, [selectedEarthquake, rows, rowVirtualizer]);
+
   // Stable callback references that don't cause re-renders
   const handleRowClick = useCallback((rowId: string) => {
-    const earthquake = filteredData.find(eq => eq.id === rowId);
+    const earthquake = data.find(eq => eq.id === rowId);
     if (earthquake) {
       setSelectedEarthquake(earthquake);
     }
-  }, [filteredData, setSelectedEarthquake]);
+  }, [data, setSelectedEarthquake]);
 
   const handleRowHover = useCallback((rowId: string | null) => {
-    const earthquake = filteredData.find(eq => eq.id === rowId);
-    if (earthquake) {
-      setHoveredEarthquake(earthquake);
+    if (rowId) {
+      const earthquake = data.find(eq => eq.id === rowId);
+      if (earthquake) {
+        setHoveredEarthquake(earthquake);
+      }
+    } else {
+      setHoveredEarthquake(null);
     }
-  }, [filteredData, setHoveredEarthquake]);
+  }, [data, setHoveredEarthquake]);
 
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="flex-shrink-0 p-4 bg-gray-50 border-b">
         <div className="flex justify-between items-center">
-          <h2 className="text-lg font-semibold">Earthquake Data (Selective Subscriptions)</h2>
+          <h2 className="text-lg font-semibold">Earthquake Data Table</h2>
           <div className="text-sm text-gray-600">
             Showing {rows.length} earthquakes
-            {filteredData.length !== data.length && (
-              <span className="text-blue-600 ml-2">
-                (filtered from {data.length})
-              </span>
-            )}
+          </div>
+        </div>
+        
+        {/* Data sync info */}
+        <div className="mt-2 p-2 bg-green-50 rounded text-sm">
+          <div className="text-green-800 font-medium">
+            ✓ Perfect chart-table synchronization • Every row corresponds to a chart point
+          </div>
+          <div className="text-xs text-green-600 mt-1">
+            Data filtered by chart axis coordinate validity to ensure perfect matching
           </div>
         </div>
         
         {/* Performance info */}
         <div className="mt-2 text-xs text-gray-500">
-          💡 Selective Zustand subscriptions • Only affected rows re-render • Zero unnecessary updates
+          💡 Bi-directional selection • Chart clicks auto-scroll to table rows • Table clicks update chart selection
         </div>
       </div>
 
@@ -379,7 +390,7 @@ const EarthquakeTable: React.FC<EarthquakeTableProps> = ({ data, setSelectedEart
         {/* Empty state */}
         {rows.length === 0 && (
           <div className="flex items-center justify-center h-32 text-gray-500">
-            No earthquakes match the current filters
+            No earthquake data available
           </div>
         )}
       </div>

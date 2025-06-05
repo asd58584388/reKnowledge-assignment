@@ -2,20 +2,41 @@ import React, { useMemo } from 'react';
 import { useEarthquakeData } from '../hooks/useEarthquakeData';
 import { LoadingSpinner } from './common/LoadingSpinner';
 import { ErrorMessage } from './common/ErrorMessage';
-import FilterPanel from './filters/FilterPanel';
 import EarthquakeChart from './chart/EarthquakeChart';
 import EarthquakeTable from './table/EarthquakeTable';
 import { useEarthquakeContext } from '../contexts/EarthquakeContext';
 
 export const Dashboard: React.FC = () => {
   const { data, isLoading, error, refetch } = useEarthquakeData();
-
   const { selectedEarthquake,hoveredEarthquake, setSelectedEarthquake, setHoveredEarthquake } = useEarthquakeContext();
- 
+  
+  // Track current chart axes to ensure data consistency
+  const [chartAxes, setChartAxes] = React.useState<{
+    xAxis: keyof import('../types/earthquake').ProcessedEarthquakeData;
+    yAxis: keyof import('../types/earthquake').ProcessedEarthquakeData;
+  }>({
+    xAxis: 'longitude',
+    yAxis: 'latitude'
+  });
+
+  // Create shared filtered dataset that both chart and table will use
+  const synchronizedData = useMemo(() => {
+    if (!data) return [];
+    
+    // Filter out earthquakes with invalid coordinates for current chart axes
+    return data.filter(earthquake => {
+      const xValue = earthquake[chartAxes.xAxis] as number;
+      const yValue = earthquake[chartAxes.yAxis] as number;
+      
+      return xValue !== null && 
+             yValue !== null && 
+             !isNaN(xValue) && 
+             !isNaN(yValue);
+    });
+  }, [data, chartAxes.xAxis, chartAxes.yAxis]);
 
   // Memoize current date to prevent unnecessary re-renders
   const currentDate = useMemo(() => new Date().toLocaleDateString(), []);
-
 
   if (isLoading) {
     return (
@@ -51,38 +72,43 @@ export const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="h-full flex bg-gray-100">
-      {/* Filter Sidebar */}
-      <FilterPanel data={data} />
-      
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Earthquake Data Visualization</h1>
-              <p className="text-sm text-gray-600 mt-1">
-                Interactive exploration of USGS earthquake data from the past month ({data.length} earthquakes)
-              </p>
-            </div>
-            <div className="text-sm text-gray-500">
-              Last updated: {currentDate}
-            </div>
+    <div className="h-full flex flex-col bg-gray-100">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Earthquake Data Visualization</h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Interactive exploration of USGS earthquake data from the past month 
+              ({synchronizedData.length} earthquakes with valid coordinates
+              {data.length !== synchronizedData.length && ` of ${data.length} total`})
+            </p>
           </div>
-        </header>
+          <div className="text-sm text-gray-500">
+            Last updated: {currentDate}
+          </div>
+        </div>
+      </header>
 
-        {/* Two-Panel Layout */}
-        <div className="flex-1 flex min-h-0">
-          {/* Chart Panel */}
-          <div className="flex-1 bg-white border-r border-gray-200">
-            <EarthquakeChart data={data} setSelectedEarthquake={setSelectedEarthquake} setHoveredEarthquake={setHoveredEarthquake} />
-          </div>
-          
-          {/* Table Panel */}
-          <div className="flex-1 bg-white">
-            <EarthquakeTable data={data} setSelectedEarthquake={setSelectedEarthquake} setHoveredEarthquake={setHoveredEarthquake} />
-          </div>
+      {/* Two-Panel Layout */}
+      <div className="flex-1 flex min-h-0">
+        {/* Chart Panel */}
+        <div className="flex-1 bg-white border-r border-gray-200">
+          <EarthquakeChart 
+            data={synchronizedData} 
+            onAxesChange={setChartAxes}
+            setSelectedEarthquake={setSelectedEarthquake} 
+            setHoveredEarthquake={setHoveredEarthquake} 
+          />
+        </div>
+        
+        {/* Table Panel */}
+        <div className="flex-1 bg-white">
+          <EarthquakeTable 
+            data={synchronizedData} 
+            setSelectedEarthquake={setSelectedEarthquake} 
+            setHoveredEarthquake={setHoveredEarthquake} 
+          />
         </div>
       </div>
     </div>

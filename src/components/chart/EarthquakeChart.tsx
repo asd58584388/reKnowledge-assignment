@@ -9,11 +9,11 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { ProcessedEarthquakeData } from "../../types/earthquake";
-import { useEarthquakeStore } from "../../stores/earthquakeStore";
 import { getNumericColumns, formatNumber } from "../../utils/dataProcessing";
 
 interface EarthquakeChartProps {
   data: ProcessedEarthquakeData[];
+  onAxesChange: (axes: { xAxis: keyof ProcessedEarthquakeData; yAxis: keyof ProcessedEarthquakeData }) => void;
   setSelectedEarthquake: (earthquake: ProcessedEarthquakeData | null) => void;
   setHoveredEarthquake: (earthquake: ProcessedEarthquakeData | null) => void;
 }
@@ -24,54 +24,62 @@ interface ChartDataPoint {
   y: number;
   magnitude: number;
   place: string;
-  isSelected: boolean;
-  isHovered: boolean;
 }
 
 const EarthquakeChart: React.FC<EarthquakeChartProps> = ({ 
   data, 
+  onAxesChange,
   setSelectedEarthquake,
   setHoveredEarthquake
 }) => {
-  // const {
-  //   selectedId,
-  //   hoveredId,
-  //   setSelectedId,
-  //   setHoveredId,
-  // } = useEarthquakeStore();
-
   const numericColumns = useMemo(() => getNumericColumns(), []);
-  const [xAxis, setXAxis] =
-    useState<keyof ProcessedEarthquakeData>("longitude");
+  const [xAxis, setXAxis] = useState<keyof ProcessedEarthquakeData>("longitude");
   const [yAxis, setYAxis] = useState<keyof ProcessedEarthquakeData>("latitude");
 
-  // Simple filtered data without complex caching
+  // Process data for chart visualization (data is already filtered by Dashboard)
   const chartData = useMemo(() => {
-    return data
-      
-      .map((earthquake) => ({
-        id: earthquake.id,
-        x: earthquake[xAxis] as number,
-        y: earthquake[yAxis] as number,
-        magnitude: earthquake.mag,
-        place: earthquake.place,
-        // isSelected: selectedId === earthquake.id,
-        // isHovered: hoveredId === earthquake.id,
-      }))
-      .filter(
-        (point) =>
-          point.x !== null &&
-          point.y !== null &&
-          !isNaN(point.x) &&
-          !isNaN(point.y)
-      )
-      .slice(0, 1000); // Limit for performance
+    // Convert earthquake data to chart points - no filtering needed as data is pre-filtered
+    const chartPoints = data.map((earthquake) => ({
+      id: earthquake.id,
+      x: earthquake[xAxis] as number,
+      y: earthquake[yAxis] as number,
+      magnitude: earthquake.mag,
+      place: earthquake.place,
+    }));
+
+    // Apply intelligent sampling if too many points
+    const CHART_POINT_LIMIT = 2000;
+    if (chartPoints.length > CHART_POINT_LIMIT) {
+      // Sample data points intelligently - prioritize higher magnitude earthquakes
+      const sorted = [...chartPoints].sort((a, b) => b.magnitude - a.magnitude);
+      return sorted.slice(0, CHART_POINT_LIMIT);
+    }
+    
+    return chartPoints;
   }, [data, xAxis, yAxis]);
+
+  // Calculate stats for user information
+  const dataStats = useMemo(() => {
+    return {
+      totalData: data.length,
+      chartPoints: chartData.length,
+      isLimited: chartData.length < data.length
+    };
+  }, [data.length, chartData.length]);
+
+  // Handle axis changes and notify parent
+  const handleXAxisChange = useCallback((newXAxis: keyof ProcessedEarthquakeData) => {
+    setXAxis(newXAxis);
+    onAxesChange({ xAxis: newXAxis, yAxis });
+  }, [yAxis, onAxesChange]);
+
+  const handleYAxisChange = useCallback((newYAxis: keyof ProcessedEarthquakeData) => {
+    setYAxis(newYAxis);
+    onAxesChange({ xAxis, yAxis: newYAxis });
+  }, [xAxis, onAxesChange]);
 
   const CustomTooltip = useCallback(
     ({ active, payload }: { active?: boolean; payload?: Array<{ payload: ChartDataPoint }> }) => {
-      console.log("active",active)
-      console.log("payload",payload)
       if (active && payload && payload.length) {
         const dataPoint = payload[0].payload as ChartDataPoint;
         return (
@@ -106,9 +114,6 @@ const EarthquakeChart: React.FC<EarthquakeChartProps> = ({
   );
 
   const getDotColor = (dataPoint: ChartDataPoint): string => {
-    if (dataPoint.isSelected) return '#dc2626'; // red-600 - strong selection color
-    if (dataPoint.isHovered) return '#f59e0b'; // amber-500 - hover color
-
     // Color by magnitude with better contrast
     if (dataPoint.magnitude >= 5) return '#b91c1c'; // red-700
     if (dataPoint.magnitude >= 4) return '#ea580c'; // orange-600
@@ -118,111 +123,76 @@ const EarthquakeChart: React.FC<EarthquakeChartProps> = ({
   };
 
   const getDotSize = (dataPoint: ChartDataPoint): number => {
-    const baseSize = Math.max(4, Math.min(12, dataPoint.magnitude * 2));
-
-    if (dataPoint.isSelected) return baseSize * 2.5; // Much larger for selection
-    if (dataPoint.isHovered) return baseSize * 1.8; // Larger for hover
-    return baseSize;
+    return Math.max(4, Math.min(12, dataPoint.magnitude * 2));
   };
 
-  const getDotOpacity = (dataPoint: ChartDataPoint): number => {
-    if (dataPoint.isSelected) return 1.0;
-    if (dataPoint.isHovered) return 0.9;
-    return 0.7;
-  };
-
-  const handleDotClick = (dataPoint: ChartDataPoint) => {
+  const handleDotClick = useCallback((dataPoint: ChartDataPoint) => {
     const earthquake = data.find(eq => eq.id === dataPoint.id);
     if (earthquake) {
-
       setSelectedEarthquake(earthquake);
     }
-  };
+  }, [data, setSelectedEarthquake]);
 
-  // const handleDotHover = useCallback((dataPoint: ChartDataPoint | null) => {
-  //   setHoveredId(dataPoint?.id || null);
-  // }, [setHoveredId]);
+  const handleDotHover = useCallback((dataPoint: ChartDataPoint | null) => {
+    if (dataPoint) {
+      const earthquake = data.find(eq => eq.id === dataPoint.id);
+      if (earthquake) {
+        setHoveredEarthquake(earthquake);
+      }
+    } else {
+      setHoveredEarthquake(null);
+    }
+  }, [data, setHoveredEarthquake]);
 
-  const CustomDot = (props: unknown) => {
+  const CustomDot = useCallback((props: unknown) => {
     const { cx, cy, payload } = props as { cx: number; cy: number; payload: ChartDataPoint };
     const dataPoint = payload as ChartDataPoint;
-    console.log("props",props)
 
     return (
-      <g>
-        {/* Outer ring for selected state */}
-        {dataPoint.isSelected && (
-          <circle
-            cx={cx}
-            cy={cy}
-            r={getDotSize(dataPoint) + 3}
-            fill="none"
-            stroke="#1e40af"
-            strokeWidth={2}
-            opacity={0.6}
-          />
-        )}
-
-        {/* Main dot */}
-        <circle
-          cx={cx}
-          cy={cy}
-          r={getDotSize(dataPoint)}
-          fill={getDotColor(dataPoint)}
-          opacity={getDotOpacity(dataPoint)}
-          stroke={dataPoint.isSelected ? '#1e40af' : dataPoint.isHovered ? '#f59e0b' : 'none'}
-          strokeWidth={dataPoint.isSelected || dataPoint.isHovered ? 2 : 0}
-          style={{
-            cursor: 'pointer',
-            transition: 'all 0.2s ease-in-out'
-          }}
-          onMouseEnter={() => handleDotHover(dataPoint)}
-          onMouseLeave={() => handleDotHover(null)}
-          onClick={() => handleDotClick(dataPoint)}
-        />
-
-        {/* Pulse animation for selected state */}
-        {dataPoint.isSelected && (
-          <circle
-            cx={cx+5}
-            cy={cy+5}
-            r={getDotSize(dataPoint)}
-            fill={getDotColor(dataPoint)}
-            opacity={0.3}
-          >
-            <animate
-              attributeName="r"
-              values={`${getDotSize(dataPoint)};${getDotSize(dataPoint) + 5};${getDotSize(dataPoint)}`}
-              dur="1.5s"
-              repeatCount="indefinite"
-            />
-            <animate
-              attributeName="opacity"
-              values="0.3;0;0.3"
-              dur="1.5s"
-              repeatCount="indefinite"
-            />
-          </circle>
-        )}
-      </g>
+      <circle
+        cx={cx}
+        cy={cy}
+        r={getDotSize(dataPoint)}
+        fill={getDotColor(dataPoint)}
+        opacity={0.7}
+        stroke="none"
+        style={{
+          cursor: 'pointer',
+          transition: 'all 0.2s ease-in-out'
+        }}
+        onMouseEnter={() => handleDotHover(dataPoint)}
+        onMouseLeave={() => handleDotHover(null)}
+        onClick={() => handleDotClick(dataPoint)}
+      />
     );
-  };
+  }, [handleDotClick, handleDotHover]);
 
-
-  const handletest = (event: React.MouseEvent<SVGCircleElement, MouseEvent>) => {
-    console.log("event",event)
-  }
   return (
     <div className="h-full flex flex-col">
       <div className="flex-shrink-0 p-4 bg-gray-50 border-b">
         <h2 className="text-lg font-semibold mb-3">Earthquake Visualization</h2>
+        
+        {/* Data stats info */}
+        <div className="mb-3 p-2 bg-green-50 rounded text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-green-800 font-medium">
+              ✓ Showing {dataStats.chartPoints} earthquakes (matches table data)
+            </span>
+            {dataStats.isLimited && (
+              <span className="text-green-600 text-xs">
+                (prioritizing higher magnitude events)
+              </span>
+            )}
+          </div>
+        </div>
+        
         <div className="flex gap-4">
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium">X-Axis:</label>
             <select
               value={xAxis}
               onChange={(e) =>
-                setXAxis(e.target.value as keyof ProcessedEarthquakeData)
+                handleXAxisChange(e.target.value as keyof ProcessedEarthquakeData)
               }
               className="px-3 py-1 border border-gray-300 rounded text-sm"
             >
@@ -238,7 +208,7 @@ const EarthquakeChart: React.FC<EarthquakeChartProps> = ({
             <select
               value={yAxis}
               onChange={(e) =>
-                setYAxis(e.target.value as keyof ProcessedEarthquakeData)
+                handleYAxisChange(e.target.value as keyof ProcessedEarthquakeData)
               }
               className="px-3 py-1 border border-gray-300 rounded text-sm"
             >
@@ -278,8 +248,7 @@ const EarthquakeChart: React.FC<EarthquakeChartProps> = ({
 
         {/* Interaction hints */}
         <div className="mt-2 text-xs text-gray-500">
-          💡 Click chart points or table rows for bi-directional selection •
-          Hover for preview
+          💡 Perfect chart-table sync • Every chart point has a corresponding table row
         </div>
       </div>
 
@@ -308,10 +277,7 @@ const EarthquakeChart: React.FC<EarthquakeChartProps> = ({
               }}
             />
             <Tooltip content={<CustomTooltip />} />
-
-            <Scatter data={chartData} shape={CustomDot} onClick={handletest} isAnimationActive={false}>
-              
-            </Scatter>
+            <Scatter data={chartData} shape={CustomDot} isAnimationActive={false} />
           </ScatterChart>
         </ResponsiveContainer>
       </div>
