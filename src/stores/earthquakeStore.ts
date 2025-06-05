@@ -1,87 +1,98 @@
 import { create } from 'zustand';
-import type { ProcessedEarthquakeData, FilterState } from '../types/earthquake';
+import type { ProcessedEarthquakeData } from '../types/earthquake';
 
-interface EarthquakeStore extends FilterState {
-  // Actions for managing selection
-  setSelectedId: (id: string | null) => void;
-  setHoveredId: (id: string | null) => void;
+interface ZoomState {
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+}
+
+interface EarthquakeStore {
+  // Chart state
+  xAxis: keyof ProcessedEarthquakeData;
+  yAxis: keyof ProcessedEarthquakeData;
+  zoomState: ZoomState | null;
   
-  // Actions for filtering
-  setMagnitudeRange: (min: number, max: number) => void;
-  setSelectedRegions: (regions: string[]) => void;
-  toggleRegion: (region: string) => void;
+  // UI state
+  tableSorting: Array<{ id: string; desc: boolean }>;
   
-  // Helper to check if earthquake matches current filters
-  isEarthquakeVisible: (earthquake: ProcessedEarthquakeData) => boolean;
+  // Chart actions
+  setChartAxes: (xAxis: keyof ProcessedEarthquakeData, yAxis: keyof ProcessedEarthquakeData) => void;
+  setZoomState: (zoom: ZoomState | null) => void;
   
-  // Reset filters
-  resetFilters: () => void;
+  // UI actions
+  setTableSorting: (sorting: Array<{ id: string; desc: boolean }>) => void;
+  
+  // Computed data function
+  getSynchronizedData: (rawData: ProcessedEarthquakeData[]) => ProcessedEarthquakeData[];
+  
+  // Reset actions
+  resetAll: () => void;
 }
 
 export const useEarthquakeStore = create<EarthquakeStore>((set, get) => ({
-  // Initial state
-  selectedId: null,
-  hoveredId: null,
-  minMagnitude: 0,
-  maxMagnitude: 10,
-  selectedRegions: [],
+  // Chart state
+  xAxis: 'longitude',
+  yAxis: 'latitude',
+  zoomState: null,
+  
+  // UI state
+  tableSorting: [],
 
-  // Actions
-  setSelectedId: (id) => set({ selectedId: id }),
-  setHoveredId: (id) => set({ hoveredId: id }),
-  
-  setMagnitudeRange: (min, max) => set({ minMagnitude: min, maxMagnitude: max }),
-  
-  setSelectedRegions: (regions) => set({ selectedRegions: regions }),
-  
-  toggleRegion: (region) => set((state) => ({
-    selectedRegions: state.selectedRegions.includes(region)
-      ? state.selectedRegions.filter(r => r !== region)
-      : [...state.selectedRegions, region]
-  })),
-  
-  isEarthquakeVisible: (earthquake) => {
-    const state = get();
-    
-    // Check magnitude range
-    if (earthquake.mag < state.minMagnitude || earthquake.mag > state.maxMagnitude) {
-      return false;
-    }
-    
-    // Check region filter (if any regions selected)
-    if (state.selectedRegions.length > 0 && !state.selectedRegions.includes(earthquake.region)) {
-      return false;
-    }
-    
-    return true;
+  // Chart actions
+  setChartAxes: (xAxis, yAxis) => {
+    set({ 
+      xAxis, 
+      yAxis,
+      zoomState: null // Reset zoom when axes change
+    });
   },
   
-  resetFilters: () => set({
-    selectedId: null,
-    hoveredId: null,
-    minMagnitude: 0,
-    maxMagnitude: 10,
-    selectedRegions: []
+  setZoomState: (zoom) => {
+    set({ zoomState: zoom });
+  },
+  
+  // UI actions
+  setTableSorting: (sorting) => set({ tableSorting: sorting }),
+  
+  // Computed data function
+  getSynchronizedData: (rawData) => {
+    const { xAxis, yAxis } = get();
+    return rawData.filter(earthquake => {
+      const xValue = earthquake[xAxis] as number;
+      const yValue = earthquake[yAxis] as number;
+      return xValue !== null && 
+             yValue !== null && 
+             !isNaN(xValue) && 
+             !isNaN(yValue);
+    });
+  },
+  
+  resetAll: () => set({
+    xAxis: 'longitude',
+    yAxis: 'latitude',
+    zoomState: null,
+    tableSorting: []
   })
 }));
 
-// Simple selectors to reduce re-renders
-export const useFilterState = () => useEarthquakeStore((state) => ({
-  minMagnitude: state.minMagnitude,
-  maxMagnitude: state.maxMagnitude,
-  selectedRegions: state.selectedRegions,
-  selectedId: state.selectedId,
-  hoveredId: state.hoveredId
+// Optimized selectors for chart functionality
+export const useChartState = () => useEarthquakeStore((state) => ({
+  xAxis: state.xAxis,
+  yAxis: state.yAxis,
+  zoomState: state.zoomState,
+  setChartAxes: state.setChartAxes,
+  setZoomState: state.setZoomState
 }));
 
-export const useSelectionState = () => useEarthquakeStore((state) => ({ 
-  selectedId: state.selectedId, 
-  hoveredId: state.hoveredId 
+export const useTableState = () => useEarthquakeStore((state) => ({
+  sorting: state.tableSorting,
+  setSorting: state.setTableSorting
 }));
 
-export const useMagnitudeFilter = () => useEarthquakeStore((state) => ({ 
-  minMagnitude: state.minMagnitude, 
-  maxMagnitude: state.maxMagnitude 
-}));
-
-export const useRegionFilter = () => useEarthquakeStore((state) => state.selectedRegions); 
+export const useDataSync = () => useEarthquakeStore((state) => ({
+  getSynchronizedData: state.getSynchronizedData,
+  xAxis: state.xAxis,
+  yAxis: state.yAxis
+})); 

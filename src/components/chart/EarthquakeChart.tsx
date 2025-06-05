@@ -131,7 +131,7 @@ const EarthquakeChart: React.FC<EarthquakeChartProps> = ({
     }));
 
     // Apply downsampling with zoom consideration
-    const MAX_POINTS = 500; // Reduced for better performance
+    const MAX_POINTS = 200; // Reduced for better performance
     return downsampleData(allPoints, MAX_POINTS, zoomState || undefined);
   }, [data, xAxis, yAxis, zoomState]);
 
@@ -171,6 +171,14 @@ const EarthquakeChart: React.FC<EarthquakeChartProps> = ({
     setZoomState(null);
   }, []);
 
+  const getAxisLabel = useCallback(
+    (axis: keyof ProcessedEarthquakeData): string => {
+      const column = numericColumns.find((col) => col.key === axis);
+      return column?.label || String(axis);
+    },
+    [numericColumns]
+  );
+
   const CustomTooltip = useCallback(
     ({ active, payload }: { active?: boolean; payload?: Array<{ payload: ChartDataPoint }> }) => {
       if (active && payload && payload.length) {
@@ -207,15 +215,7 @@ const EarthquakeChart: React.FC<EarthquakeChartProps> = ({
       }
       return null;
     },
-    [xAxis, yAxis]
-  );
-
-  const getAxisLabel = useCallback(
-    (axis: keyof ProcessedEarthquakeData): string => {
-      const column = numericColumns.find((col) => col.key === axis);
-      return column?.label || String(axis);
-    },
-    [numericColumns]
+    [xAxis, yAxis, getAxisLabel]
   );
 
   const getDotColor = (dataPoint: ChartDataPoint): string => {

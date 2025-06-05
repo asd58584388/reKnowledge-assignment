@@ -35,12 +35,4 @@ export interface ChartAxisOption {
   key: keyof ProcessedEarthquakeData;
   label: string;
   type: 'numeric' | 'categorical';
-}
-
-export interface FilterState {
-  selectedId: string | null;
-  hoveredId: string | null;
-  minMagnitude: number;
-  maxMagnitude: number;
-  selectedRegions: string[];
 } 

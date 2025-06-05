@@ -1,42 +1,43 @@
 # Earthquake Data Visualization Dashboard
 
-A modern, interactive single-page application for visualizing and analyzing earthquake data from the USGS (United States Geological Survey). Built with React, TypeScript, and a robust set of modern libraries.
+An interactive web application for visualizing and exploring earthquake data from the USGS (United States Geological Survey). The dashboard provides real-time earthquake information with interactive charts, data tables, and error uncertainty displays.
 
-## 🌟 Features
+## ✨ Features
 
-### Interactive Visualization
-- **Scatter Plot Chart**: Dynamic scatter plot with customizable X and Y axes
-- **Real-time Interactions**: Click and hover interactions between chart and table
-- **Magnitude-based Coloring**: Visual encoding using color and size to represent earthquake magnitude
-- **Responsive Design**: Optimized for desktop and laptop screens
+### 📊 Interactive Data Visualization
+- **Scatter Plot Chart**: Interactive scatter chart with configurable X/Y axes
+- **Smart Downsampling**: Automatic clustering for performance with zoom-to-explore functionality
+- **Bi-directional Selection**: Click chart points to highlight table rows, and vice versa
+- **Auto-scroll Synchronization**: Chart selections automatically scroll to corresponding table rows
 
-### Data Management
-- **Live Data Source**: Fetches real earthquake data from USGS CSV feed
-- **Smart Filtering**: Filter by magnitude range and geographic regions
-- **Data Processing**: Automatic categorization and enhancement of raw data
-- **Loading States**: Comprehensive loading indicators and error handling
+### 📋 Advanced Data Table
+- **Error Display**: Shows measurement uncertainties (magnitude ± error, depth ± error, etc.)
+- **Virtualized Rendering**: High-performance rendering for large datasets
+- **Column Sorting**: Sort by any column with visual indicators
+- **Real-time Highlighting**: Context-aware row highlighting based on chart interactions
 
-### User Interactions
-- **Bi-directional Selection**: Select earthquakes in table to highlight in chart and vice versa
-- **Dynamic Filtering**: Real-time filtering with magnitude sliders and region checkboxes
-- **Scrollable Table**: Full-featured data table with sticky headers
-- **Hover Effects**: Immediate visual feedback on data point hover
+### 🎯 Smart Data Management
+- **Perfect Synchronization**: Chart and table always show identical data
+- **Coordinate Validation**: Automatic filtering of invalid data points
+- **Data Stats**: Real-time count and statistics display
+- **Caching & Performance**: Optimized data processing with intelligent caching
 
-### State Management Patterns
-The application demonstrates three different state management approaches:
+### 🔧 Technical Features
+- **Zustand State Management**: Optimized global state with selective subscriptions
+- **React Query**: Intelligent data fetching with caching and retry logic
+- **TypeScript**: Full type safety throughout the application
+- **Responsive Design**: Works on desktop and mobile devices
 
-1. **Props Pattern**: Data and handlers passed from parent to child components
-2. **React Context**: Global context for managing selected earthquake state
-3. **Zustand Store**: Global state store for filters, selections, and computed data
-
-## 🛠️ Tech Stack
+## 🛠️ Technology Stack
 
 - **React 19** - Modern React with latest features
 - **TypeScript** - Type-safe development
-- **Vite** - Fast build tool and dev server
-- **TailwindCSS 4.1** - Utility-first CSS framework
-- **TanStack Query 5** - Data fetching, caching, and synchronization
-- **Recharts 2.15** - Composable charting library
+- **Vite** - Fast build tool and development server
+- **TailwindCSS 4** - Utility-first CSS framework
+- **Recharts** - Declarative chart library for React
+- **TanStack React Table** - Powerful table component with virtualization
+- **TanStack React Virtual** - Virtualized scrolling for performance
+- **TanStack React Query** - Data fetching and caching
 - **Zustand 5** - Lightweight state management
 
 ## 📋 Prerequisites
@@ -80,23 +81,21 @@ The application demonstrates three different state management approaches:
 src/
 ├── components/
 │   ├── chart/
-│   │   └── EarthquakeChart.tsx    # Interactive scatter plot
+│   │   └── EarthquakeChart.tsx    # Interactive scatter plot with clustering
 │   ├── table/
-│   │   └── EarthquakeTable.tsx    # Data table with selection
-│   ├── filters/
-│   │   └── FilterPanel.tsx        # Magnitude and region filters
+│   │   └── EarthquakeTable.tsx    # Virtualized data table with error display
 │   ├── common/
 │   │   ├── LoadingSpinner.tsx     # Loading indicator
 │   │   └── ErrorMessage.tsx       # Error display
 │   └── Dashboard.tsx              # Main layout component
 ├── contexts/
-│   └── EarthquakeContext.tsx      # React Context for selection
+│   └── EarthquakeContext.tsx      # React Context for selection state
 ├── stores/
 │   └── earthquakeStore.ts         # Zustand global store
 ├── hooks/
 │   └── useEarthquakeData.ts       # React Query data fetching
 ├── utils/
-│   └── dataProcessing.ts          # Data parsing and enhancement
+│   └── dataProcessing.ts          # Data parsing and enhancement utilities
 ├── types/
 │   └── earthquake.ts              # TypeScript interfaces
 └── App.tsx                        # Root component with providers
@@ -107,68 +106,50 @@ src/
 The application fetches live earthquake data from:
 - **Source**: USGS Earthquake Hazards Program
 - **URL**: https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.csv
-- **Coverage**: All earthquakes from the past month
-- **Update Frequency**: Real-time updates from USGS
+- **Update Frequency**: Real-time (updated as new earthquakes are detected)
+- **Coverage**: Global earthquake activity from the past month
 
-### Data Processing
+## 🎨 Key Components
 
-Raw CSV data is enhanced with:
-- **Date Parsing**: Converts ISO strings to Date objects
-- **Geographic Regions**: Extracts state/country from location descriptions
-- **Magnitude Categories**: Classifies earthquakes (Micro, Minor, Light, Moderate, Strong, Major, Great)
-- **Depth Categories**: Shallow (<70km), Intermediate (70-300km), Deep (>300km)
+### EarthquakeChart
+- Interactive scatter plot with configurable axes
+- Smart clustering with zoom functionality
+- Real-time selection synchronization
+- Performance-optimized rendering
 
-## 🎨 UI/UX Features
+### EarthquakeTable
+- Virtualized table supporting thousands of rows
+- Error uncertainty display (±values)
+- Auto-scroll to selected items
+- Sortable columns with persistence
 
-### Layout
-- **Three-panel design**: Filters sidebar, chart panel, and data table panel
-- **Responsive**: Adapts to different screen sizes
-- **Sticky headers**: Table headers remain visible during scrolling
+### Dashboard
+- Orchestrates data flow between components
+- Handles data synchronization
+- Manages loading and error states
 
-### Visual Design
-- **Modern aesthetics**: Clean, professional interface using TailwindCSS
-- **Color coding**: Magnitude-based color schemes for easy pattern recognition
-- **Interactive feedback**: Hover states, selection highlights, and transitions
+## 🚀 Performance Optimizations
 
-### Accessibility
-- **Keyboard navigation**: Full keyboard support for interactive elements
-- **Screen reader friendly**: Semantic HTML and proper labeling
-- **High contrast**: Clear visual distinctions for all UI elements
+- **Virtualized Rendering**: Only renders visible table rows
+- **Smart Clustering**: Reduces chart complexity for large datasets
+- **Zustand Selectors**: Prevents unnecessary re-renders
+- **Data Caching**: Intelligent caching of processed data
+- **Memoization**: Strategic use of React.memo and useMemo
 
-## 🔧 Configuration
+## 🔮 Future Enhancements
 
-### Environment Variables
-No environment variables are required for basic functionality. The application uses public USGS data endpoints.
-
-### Customization
-- **Data refresh interval**: Modify `staleTime` in `useEarthquakeData.ts`
-- **Chart appearance**: Customize colors and sizes in `EarthquakeChart.tsx`
-- **Filter options**: Adjust default ranges in `earthquakeStore.ts`
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-1. **Data loading fails**
-   - Check internet connection
-   - Verify USGS endpoint is accessible
-   - Try refreshing the page
-
-2. **Chart not rendering**
-   - Ensure data contains valid numeric values
-   - Check browser console for errors
-   - Verify Recharts compatibility
-
-3. **Performance issues**
-   - Large datasets may cause slowdown
-   - Consider implementing virtualization for tables
-   - Monitor memory usage in dev tools
+- Real-time data updates via WebSocket
+- Advanced filtering and search capabilities
+- Export functionality (CSV, JSON)
+- Earthquake prediction models integration
+- Historical data analysis tools
+- Mobile-optimized touch interactions
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
@@ -178,6 +159,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 🙏 Acknowledgments
 
-- **USGS** for providing free, real-time earthquake data
-- **React community** for excellent tooling and libraries
-- **TailwindCSS** for the utility-first CSS approach
+- USGS for providing real-time earthquake data
+- React and TypeScript communities for excellent tooling
+- TanStack team for powerful data management libraries

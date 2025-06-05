@@ -84,19 +84,15 @@ export const useEarthquakeData = () => {
   return useQuery<ProcessedEarthquakeData[], Error>({
     queryKey: ['earthquakes'],
     queryFn: async () => {
-      console.log('Starting earthquake data fetch...');
-      
       try {
         // Try to fetch real data first
         const rawData = await fetchEarthquakeData();
-        console.log('Successfully fetched real data:', rawData.length, 'records');
         return processEarthquakeData(rawData);
       } catch (error) {
         console.warn('Failed to fetch real data, using mock data:', error);
         
         // If real data fails, use mock data for testing
         const mockData = createMockData();
-        console.log('Using mock data:', mockData.length, 'records');
         return processEarthquakeData(mockData);
       }
     },

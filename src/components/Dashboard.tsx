@@ -8,7 +8,7 @@ import { useEarthquakeContext } from '../contexts/EarthquakeContext';
 
 export const Dashboard: React.FC = () => {
   const { data, isLoading, error, refetch } = useEarthquakeData();
-  const { selectedEarthquake,hoveredEarthquake, setSelectedEarthquake, setHoveredEarthquake } = useEarthquakeContext();
+  const { setSelectedEarthquake, setHoveredEarthquake } = useEarthquakeContext();
   
   // Track current chart axes to ensure data consistency
   const [chartAxes, setChartAxes] = React.useState<{

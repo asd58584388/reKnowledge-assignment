@@ -28,12 +28,14 @@ const VirtualizedRow = React.memo(({
   virtualRow, 
   row, 
   onRowClick, 
-  onRowHover 
+  onRowHover,
+  totalWidth
 }: {
   virtualRow: VirtualItem;
   row: Row<ProcessedEarthquakeData>;
   onRowClick: (rowId: string) => void;
   onRowHover: (rowId: string | null) => void;
+  totalWidth: number;
 }) => {
   const earthquake = row.original;
   const { selectedEarthquake, hoveredEarthquake } = useEarthquakeContext();
@@ -65,11 +67,14 @@ const VirtualizedRow = React.memo(({
   return (
     <div
       data-earthquake-id={row.id}
-      className={`absolute left-0 right-0 flex border-b border-gray-200 ${rowClassName}`}
+      className={`absolute flex border-b border-gray-200 ${rowClassName}`}
       style={{
         height: `${virtualRow.size}px`,
         transform: `translateY(${virtualRow.start}px)`,
         contain: 'layout style paint', // CSS containment for performance
+        width: `${totalWidth}px`,
+        minWidth: `${totalWidth}px`,
+        left: 0,
       }}
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
@@ -78,11 +83,11 @@ const VirtualizedRow = React.memo(({
       {row.getVisibleCells().map(cell => (
         <div
           key={cell.id}
-          className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200 last:border-r-0 flex items-center"
+          className="px-4 py-3 text-sm text-gray-900 border-r border-gray-200 last:border-r-0 flex items-center flex-shrink-0"
           style={{ 
-            width: cell.column.getSize(),
-            minWidth: cell.column.columnDef.minSize,
-            maxWidth: cell.column.columnDef.maxSize,
+            width: `${cell.column.getSize()}px`,
+            minWidth: `${cell.column.getSize()}px`,
+            maxWidth: `${cell.column.getSize()}px`,
           }}
         >
           {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -96,39 +101,52 @@ VirtualizedRow.displayName = 'VirtualizedRow';
 
 // Header component that doesn't re-render on row state changes
 const TableHeader = React.memo(({ table }: { table: Table<ProcessedEarthquakeData> }) => {
+  // Calculate total table width based on column sizes
+  const totalWidth = table.getVisibleLeafColumns().reduce((width, column) => width + column.getSize(), 0);
+  
   return (
-    <div className="sticky top-0 z-20 bg-gray-100 border-b border-gray-200">
+    <div 
+      className="sticky top-0 z-20 bg-gradient-to-r from-slate-50 to-gray-50 border-b-2 border-gray-300 shadow-sm"
+      style={{ minWidth: `${totalWidth}px` }}
+    >
       {table.getHeaderGroups().map((headerGroup: HeaderGroup<ProcessedEarthquakeData>) => (
-        <div key={headerGroup.id} className="flex">
+        <div key={headerGroup.id} className="flex" style={{ width: `${totalWidth}px` }}>
           {headerGroup.headers.map((header: Header<ProcessedEarthquakeData, unknown>) => (
             <div
               key={header.id}
-              className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 last:border-r-0"
+              className="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-300 last:border-r-0 bg-white/50 flex-shrink-0"
               style={{ 
-                width: header.getSize(),
-                minWidth: header.column.columnDef.minSize,
-                maxWidth: header.column.columnDef.maxSize,
+                width: `${header.getSize()}px`,
+                minWidth: `${header.getSize()}px`,
+                maxWidth: `${header.getSize()}px`,
               }}
             >
               {header.isPlaceholder ? null : (
                 <div
                   {...{
                     className: header.column.getCanSort()
-                      ? 'cursor-pointer select-none flex items-center gap-2 hover:text-gray-700'
-                      : 'flex items-center gap-2',
+                      ? 'cursor-pointer select-none flex items-center justify-between group hover:text-blue-600 transition-colors duration-200'
+                      : 'flex items-center justify-between',
                     onClick: header.column.getToggleSortingHandler(),
                   }}
                 >
-                  {flexRender(
-                    header.column.columnDef.header,
-                    header.getContext()
-                  )}
-                  {{
-                    asc: ' 🔼',
-                    desc: ' 🔽',
-                  }[header.column.getIsSorted() as string] ?? (
-                    header.column.getCanSort() ? ' ⏸️' : ''
-                  )}
+                  <span className="flex-1">
+                    {flexRender(
+                      header.column.columnDef.header,
+                      header.getContext()
+                    )}
+                  </span>
+                  <span className="ml-2 flex-shrink-0">
+                    {header.column.getIsSorted() === 'asc' && (
+                      <span className="text-blue-500 text-sm">↑</span>
+                    )}
+                    {header.column.getIsSorted() === 'desc' && (
+                      <span className="text-blue-500 text-sm">↓</span>
+                    )}
+                    {!header.column.getIsSorted() && header.column.getCanSort() && (
+                      <span className="text-gray-300 group-hover:text-gray-400 text-sm">↕</span>
+                    )}
+                  </span>
                 </div>
               )}
             </div>
@@ -162,22 +180,29 @@ const EarthquakeTable: React.FC<EarthquakeTableProps> = ({ data, setSelectedEart
       accessorKey: 'mag',
       header: 'Magnitude',
       cell: (info) => {
-        const magnitude = info.getValue() as number;
+        const earthquake = info.row.original;
+        const magnitude = earthquake.mag;
+        const magError = earthquake.magError;
+        
         const colorClass = magnitude >= 5 ? 'text-red-600' 
           : magnitude >= 4 ? 'text-orange-600' 
           : magnitude >= 3 ? 'text-yellow-600' 
           : magnitude >= 2 ? 'text-lime-600' 
           : 'text-green-600';
         
+        const displayValue = magError !== null && magError !== undefined && !isNaN(magError)
+          ? `${formatNumber(magnitude, 1)} ± ${formatNumber(magError, 2)}`
+          : formatNumber(magnitude, 1);
+        
         return (
-          <span className={`font-semibold ${colorClass}`}>
-            {formatNumber(magnitude, 1)}
+          <span className={`font-semibold ${colorClass}`} title={magError ? `Magnitude: ${magnitude}, Error: ±${magError}` : `Magnitude: ${magnitude}`}>
+            {displayValue}
           </span>
         );
       },
-      size: 80,
-      minSize: 70,
-      maxSize: 100,
+      size: 120,
+      minSize: 100,
+      maxSize: 140,
     },
     {
       id: 'place',
@@ -199,28 +224,72 @@ const EarthquakeTable: React.FC<EarthquakeTableProps> = ({ data, setSelectedEart
       id: 'depth',
       accessorKey: 'depth',
       header: 'Depth (km)',
-      cell: (info) => formatNumber(info.getValue() as number, 1),
-      size: 100,
-      minSize: 80,
-      maxSize: 120,
+      cell: (info) => {
+        const earthquake = info.row.original;
+        const depth = earthquake.depth;
+        const depthError = earthquake.depthError;
+        
+        const displayValue = depthError !== null && depthError !== undefined && !isNaN(depthError)
+          ? `${formatNumber(depth, 1)} ± ${formatNumber(depthError, 1)}`
+          : formatNumber(depth, 1);
+        
+        return (
+          <span title={depthError ? `Depth: ${depth}km, Error: ±${depthError}km` : `Depth: ${depth}km`}>
+            {displayValue}
+          </span>
+        );
+      },
+      size: 130,
+      minSize: 110,
+      maxSize: 150,
     },
     {
       id: 'latitude',
       accessorKey: 'latitude',
       header: 'Latitude',
-      cell: (info) => formatNumber(info.getValue() as number, 3),
-      size: 100,
-      minSize: 80,
-      maxSize: 120,
+      cell: (info) => {
+        const earthquake = info.row.original;
+        const latitude = earthquake.latitude;
+        const horizontalError = earthquake.horizontalError;
+        
+        // Use horizontal error for both lat/lng since they're related to position accuracy
+        const displayValue = horizontalError !== null && horizontalError !== undefined && !isNaN(horizontalError)
+          ? `${formatNumber(latitude, 3)} ± ${formatNumber(horizontalError, 3)}`
+          : formatNumber(latitude, 3);
+        
+        return (
+          <span title={horizontalError ? `Latitude: ${latitude}°, Horizontal Error: ±${horizontalError}°` : `Latitude: ${latitude}°`}>
+            {displayValue}
+          </span>
+        );
+      },
+      size: 140,
+      minSize: 120,
+      maxSize: 160,
     },
     {
       id: 'longitude',
       accessorKey: 'longitude',
       header: 'Longitude',
-      cell: (info) => formatNumber(info.getValue() as number, 3),
-      size: 100,
-      minSize: 80,
-      maxSize: 120,
+      cell: (info) => {
+        const earthquake = info.row.original;
+        const longitude = earthquake.longitude;
+        const horizontalError = earthquake.horizontalError;
+        
+        // Use horizontal error for both lat/lng since they're related to position accuracy
+        const displayValue = horizontalError !== null && horizontalError !== undefined && !isNaN(horizontalError)
+          ? `${formatNumber(longitude, 3)} ± ${formatNumber(horizontalError, 3)}`
+          : formatNumber(longitude, 3);
+        
+        return (
+          <span title={horizontalError ? `Longitude: ${longitude}°, Horizontal Error: ±${horizontalError}°` : `Longitude: ${longitude}°`}>
+            {displayValue}
+          </span>
+        );
+      },
+      size: 140,
+      minSize: 120,
+      maxSize: 160,
     },
     {
       id: 'region',
@@ -287,6 +356,11 @@ const EarthquakeTable: React.FC<EarthquakeTableProps> = ({ data, setSelectedEart
   });
 
   const { rows } = table.getRowModel();
+  
+  // Calculate total table width
+  const totalWidth = useMemo(() => {
+    return table.getVisibleLeafColumns().reduce((width, column) => width + column.getSize(), 0);
+  }, [table]);
 
   // Virtualization setup with performance optimizations
   const rowVirtualizer = useVirtualizer({
@@ -367,7 +441,7 @@ const EarthquakeTable: React.FC<EarthquakeTableProps> = ({ data, setSelectedEart
         }}
       >
         {/* Table */}
-        <div style={{ height: `${rowVirtualizer.getTotalSize()}px` }} className="relative">
+        <div style={{ height: `${rowVirtualizer.getTotalSize()}px`, minWidth: `${totalWidth}px` }} className="relative">
           {/* Header - separated component that doesn't re-render on row interactions */}
           <TableHeader table={table} />
 
@@ -382,6 +456,7 @@ const EarthquakeTable: React.FC<EarthquakeTableProps> = ({ data, setSelectedEart
                 row={row}
                 onRowClick={handleRowClick}
                 onRowHover={handleRowHover}
+                totalWidth={totalWidth}
               />
             );
           })}
